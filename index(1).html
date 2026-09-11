@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="照片管家">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <title>照片管家</title>
+  <style>
+    :root{
+      --bg:#f2f2f7; --card:#fff; --blue:#007aff; --blue-2:#0051d5;
+      --text:#000; --text2:#6c6c70; --text3:#8e8e93;
+      --border:#e5e5ea; --yellow:#ffcc00; --red:#ff3b30; --green:#34c759;
+      --safe-top:env(safe-area-inset-top); --safe-bottom:env(safe-area-inset-bottom);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:16px;overscroll-behavior:none}
+    .app{height:100%;display:flex;flex-direction:column;padding-top:var(--safe-top);padding-bottom:calc(62px + var(--safe-bottom));position:relative}
+    /* top bar：三段式（左按钮 / 居中标题 / 右按钮） */
+    .topbar{height:52px;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--bg);position:sticky;top:var(--safe-top);z-index:20}
+    .topbar .tb-l{min-width:44px;display:flex;align-items:center;gap:6px}
+    .topbar .tb-r{min-width:44px;display:flex;align-items:center;justify-content:flex-end;gap:10px}
+    .topbar h1{flex:1;text-align:center;font-size:18px;font-weight:600;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .icon-btn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--blue);font-size:24px;font-weight:400}
+    .icon-btn svg{width:22px;height:22px}
+    .txt-btn{color:var(--blue);font-size:15px;font-weight:600;padding:0 2px}
+    /* notice */
+    .notice{margin:6px 16px 12px;background:var(--yellow);border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.45;color:#3a2e00;display:flex;align-items:center;gap:8px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+    .notice::before{content:"⚠️";font-size:15px}
+    /* content */
+    .scroll{flex:1;overflow-y:auto;padding:0 16px 24px;-webkit-overflow-scrolling:touch}
+    /* album grid：小卡片（4 列） */
+    .album-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .album-card{background:var(--card);border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative;aspect-ratio:.82}
+    .album-card:active{transform:scale(.97)}
+    .album-cover{width:100%;height:68%;object-fit:cover;background:var(--bg)}
+    .album-empty{height:68%;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--border)}
+    .album-info{padding:5px 7px 6px}
+    .album-info .n{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .album-info .c{font-size:10px;color:var(--text2);margin-top:1px}
+    .album-card.create{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;color:var(--blue)}
+    .album-card.create .plus{font-size:24px;line-height:1;font-weight:300}
+    .album-card.create .t{font-size:10.5px;font-weight:600}
+    /* photo grid */
+    .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;border-radius:12px;overflow:hidden}
+    .photo-grid img{width:100%;aspect-ratio:1;object-fit:cover;background:var(--bg);cursor:pointer}
+    .empty{padding:60px 20px;text-align:center;color:var(--text3);font-size:14px;line-height:1.7}
+    .empty b{display:block;color:var(--text);font-size:16px;margin-bottom:8px;font-weight:600}
+    /* import page */
+    .import-form{background:var(--card);border-radius:16px;padding:16px;margin-bottom:14px}
+    .form-row{margin-bottom:14px}
+    .form-row label{display:block;font-size:13px;color:var(--text2);margin-bottom:6px;font-weight:500}
+    .form-row input[type=text],.form-row select{width:100%;height:42px;border:1px solid var(--border);border-radius:10px;padding:0 12px;font-size:15px;background:var(--bg)}
+    .file-btn{display:block;width:100%;height:48px;background:var(--blue);color:#fff;border-radius:12px;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0}
+    .file-btn:active{background:var(--blue-2)}
+    #fileInp{display:none}
+    .previews{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+    .previews .p{width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--bg)}
+    .stats{font-size:12px;color:var(--text2);margin-top:10px}
+    /* bottom tab */
+    .tabbar{position:fixed;bottom:0;left:0;right:0;height:calc(62px + var(--safe-bottom));padding-bottom:var(--safe-bottom);background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-top:1px solid var(--border);display:flex;z-index:30}
+    .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--text3);font-size:10px;cursor:pointer;transition:.15s}
+    .tab.active{color:var(--blue)}
+    .tab svg{width:24px;height:24px}
+    /* modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:flex-end;justify-content:center;z-index:100;padding-bottom:var(--safe-bottom)}
+    .modal.show{display:flex}
+    .sheet{background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:420px;padding:18px 20px 24px;animation:up .22s ease}
+    @keyframes up{from{transform:translateY(100%)}}
+    .sheet h3{font-size:18px;margin-bottom:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sheet input{width:100%;height:44px;border:1px solid var(--border);border-radius:12px;padding:0 14px;font-size:16px;margin-bottom:12px;background:var(--bg)}
+    .sheet .acts{display:flex;gap:10px}
+    .btn{flex:1;height:44px;border:none;border-radius:12px;font-size:16px;background:var(--border);color:var(--text)}
+    .btn.primary{background:var(--blue);color:#fff}
+    .menu-row{width:100%;height:50px;border:none;background:none;font-size:16px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text)}
+    .menu-row:active{background:var(--bg)}
+    .menu-row.danger{color:var(--red)}
+    .menu-row.cancel{color:var(--text2)}
+    /* 全屏查看器 */
+    .viewer{position:fixed;inset:0;background:#000;z-index:80;display:flex;flex-direction:column}
+    .v-top{padding:calc(10px + var(--safe-top)) 14px 6px;display:flex;align-items:center;gap:10px}
+    .v-close{color:#fff;font-size:30px;font-weight:300;line-height:1;width:36px;text-align:left;padding:2px 0}
+    .v-info{color:rgba(255,255,255,.8);font-size:12.5px;letter-spacing:.2px}
+    .v-img{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .v-img img{max-width:100%;max-height:100%;object-fit:contain;transition:transform .25s;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+    .v-side{position:absolute;top:0;bottom:0;width:20%;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.55);z-index:2;cursor:pointer}
+    .v-side.l{left:0}
+    .v-side.r{right:0}
+    .v-side svg{width:26px;height:26px}
+    .v-side.r svg{transform:rotate(180deg)}
+    .v-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 46px calc(12px + var(--safe-bottom))}
+    .v-act{display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;font-size:11px;min-width:56px;cursor:pointer}
+    .v-act svg{width:23px;height:23px}
+    .v-act.danger{color:var(--red)}
+    /* 最近删除 */
+    .trash-sub{font-size:13px;color:var(--text2);padding:2px 2px 12px}
+    .trash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;border-radius:12px;overflow:hidden}
+    .trash-grid .cell{position:relative;aspect-ratio:1;background:#000;cursor:pointer}
+    .trash-grid .cell img{width:100%;height:100%;object-fit:cover;opacity:.92}
+    .rbtn{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center}
+    .rbtn svg{width:14px;height:14px}
+    .trash-tip{font-size:12px;color:var(--text3);text-align:center;margin-top:14px}
+    .purge-btn{display:flex;width:100%;height:50px;margin-top:14px;background:var(--red);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;align-items:center;justify-content:center}
+    .purge-btn:active{background:#d70015}
+    /* toast */
+    .toast{position:fixed;top:calc(20px + var(--safe-top));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;z-index:200;opacity:0;transition:.2s;pointer-events:none}
+    .toast.show{opacity:1}
+  </style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="tb-l" id="tbL"></div>
+    <h1 id="pageTitle">全部相簿</h1>
+    <div class="tb-r" id="tbR"></div>
+  </div>
+  <div class="scroll" id="main"></div>
+  <div class="tabbar" id="tabbar"></div>
+</div>
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+const toast=(t)=>{const el=$('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1600);}
+let DB=null;
+const DB_NAME='PhotoPWA', DB_V=2;
+
+/* ============== IndexedDB ============== */
+function initDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,DB_V);
+    r.onerror=(e)=>rej(e.target.error||r.error);
+    r.onsuccess=()=>{DB=r.result;res(DB);}
+    r.onupgradeneeded=(e)=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('albums')) db.createObjectStore('albums',{keyPath:'id',autoIncrement:true});
+      if(!db.objectStoreNames.contains('photos')){
+        const s=db.createObjectStore('photos',{keyPath:'id',autoIncrement:true});
+        s.createIndex('albumId','albumId',{unique:false});
+      }
+      if(!db.objectStoreNames.contains('trash')) db.createObjectStore('trash',{keyPath:'id',autoIncrement:true});
+    };
+  });
+}
+function put(os,obj){return new Promise((res,rej)=>{const tx=DB.transaction(os,'readwrite');const s=tx.objectStore(os);const r=s.put(obj);r.onsuccess=()=>res(r.result);r.onerror=(e)=>rej(e.target.error||r.error);});}
+function del(os,id){return new Promise((res,rej)=>{const tx=DB.transaction(os,'readwrite');const s=tx.objectStore(os);const r=s.delete(id);r.onsuccess=()=>res();r.onerror=(e)=>rej(e.target.error||r.error);});}
+function get(os,id){return new Promise((res,rej)=>{const tx=DB.transaction(os,'readonly');const s=tx.objectStore(os);const r=s.get(id);r.onsuccess=()=>res(r.result);r.onerror=(e)=>rej(e.target.error||r.error);});}
+function getAll(os){return new Promise((res,rej)=>{const tx=DB.transaction(os,'readonly');const s=tx.objectStore(os);const r=s.getAll();r.onsuccess=()=>res(r.result);r.onerror=(e)=>rej(e.target.error||r.error);});}
+function getByIdx(os,idxName,val){return new Promise((res,rej)=>{const tx=DB.transaction(os,'readonly');const s=tx.objectStore(os);const r=s.index(idxName).getAll(val);r.onsuccess=()=>res(r.result);r.onerror=(e)=>rej(e.target.error||r.error);});}
+
+/* ============== 图像处理 ============== */
+function readFile(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsArrayBuffer(file);});}
+function blobToBuffer(blob){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsArrayBuffer(blob);});}
+async function compressImage(buf,mime){
+  const blob=new Blob([buf],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const img=new Image(); img.src=url;
+  await new Promise(r=>{img.onload=()=>r();});
+  URL.revokeObjectURL(url);
+  // full size
+  const max=1920; let w=img.width,h=img.height;
+  if(w>max||h>max){if(w>h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}
+  const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+  const fullBlob=await new Promise(r=>c.toBlob(r,mime,0.85));
+  const data=await blobToBuffer(fullBlob);
+  // thumb
+  const tMax=300; let tw=img.width,th=img.height;
+  if(tw>tMax||th>tMax){if(tw>th){th=Math.round(th*tMax/tw);tw=tMax;}else{tw=Math.round(tw*tMax/th);th=tMax;}}
+  const tc=document.createElement('canvas');tc.width=tw;tc.height=th;tc.getContext('2d').drawImage(img,0,0,tw,th);
+  const tb=await new Promise(r=>tc.toBlob(r,'image/jpeg',0.7));
+  const thumb=await blobToBuffer(tb);
+  return {data,thumb};
+}
+function blobUrl(buf,type){return URL.createObjectURL(new Blob([buf],{type:type||'image/jpeg'}));}
+function fmtMB(b){b=b||0;const m=b/1048576;if(m>=1)return m.toFixed(1)+' MB';const k=Math.round(b/1024);return k>=1?k+' KB':'0 KB';}
+function fmtDate(ts){const d=new Date(ts);return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日';}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ============== 业务 ============== */
+async function createAlbum(name){await put('albums',{name,createdAt:Date.now(),coverPhotoId:0});toast('相簿已创建');}
+async function renameAlbum(album,name){album.name=name;await put('albums',album);}
+/* 删除相簿：照片整体移入「最近删除」，可随时恢复 */
+async function deleteAlbum(id){
+  const album=await get('albums',id);
+  const ps=await getByIdx('photos','albumId',id);
+  for(const p of ps){
+    await put('trash',{photoId:p.id,albumId:id,albumName:album?album.name:'',name:p.name,mime:p.mime,size:p.size,addedAt:p.addedAt,deletedAt:Date.now(),data:p.data,thumb:p.thumb});
+    await del('photos',p.id);
+  }
+  await del('albums',id);
+}
+/* 单张删除 → 移入「最近删除」 */
+async function trashPhoto(p){
+  const album=await get('albums',p.albumId);
+  await put('trash',{photoId:p.id,albumId:p.albumId,albumName:album?album.name:'',name:p.name,mime:p.mime,size:p.size,addedAt:p.addedAt,deletedAt:Date.now(),data:p.data,thumb:p.thumb});
+  await del('photos',p.id);
+}
+/* 从「最近删除」恢复：原相簿若已被删除，则按原名自动重建（同名相簿复用，避免重复建） */
+async function restorePhoto(t){
+  let aid=t.albumId;
+  const album=await get('albums',aid);
+  if(!album){
+    const all=await getAll('albums');
+    const found=all.find(a=>a.name===t.albumName);
+    if(found){aid=found.id;}
+    else{aid=await put('albums',{name:t.albumName||'恢复的照片',createdAt:Date.now(),coverPhotoId:0});}
+  }
+  const pid=await put('photos',{albumId:aid,name:t.name,mime:t.mime,size:t.size,addedAt:t.addedAt,data:t.data,thumb:t.thumb});
+  const a2=await get('albums',aid);
+  if(a2&&!a2.coverPhotoId){a2.coverPhotoId=pid;await put('albums',a2);}
+  await del('trash',t.id);
+}
+async function importPhotos(albumId,files){
+  let ok=0;
+  for(const f of files){
+    try{
+      const buf=await readFile(f);
+      const {data,thumb}=await compressImage(buf,f.type);
+      const pid=await put('photos',{albumId:+albumId,name:f.name,mime:f.type,size:f.size,storeSize:data.byteLength,addedAt:Date.now(),data,thumb});
+      // 更新相簿封面
+      const tx=DB.transaction('albums','readwrite');
+      const ar=tx.objectStore('albums').get(+albumId);
+      ar.onsuccess=()=>{const a=ar.result;if(a){a.coverPhotoId=pid;tx.objectStore('albums').put(a);}}
+      ok++;
+    }catch(e){console.error(e);}
+  }
+  return ok;
+}
+
+/* ============== 图标 ============== */
+const ALBUM_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" stroke="none"></circle><path d="M21 15l-5-5L5 21"></path></svg>';
+const IMPORT_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>';
+const TRASH_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+const SHARE_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>';
+const RESTORE_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>';
+const CHEV_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+
+/* ============== 路由 ============== */
+let CURRENT='albums';
+function nav(to,arg){CURRENT=to;render(to,arg);updateTabs();}
+function updateTabs(){
+  const alb=(CURRENT==='albums'||CURRENT==='detail'||CURRENT==='trash');
+  $('tabbar').innerHTML='<div class="tab '+(alb?'active':'')+'" data-to="albums">'+ALBUM_SVG+'<span>相簿</span></div>'+
+    '<div class="tab '+(CURRENT==='import'?'active':'')+'" data-to="import">'+IMPORT_SVG+'<span>导入</span></div>';
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{closeViewer();nav(t.dataset.to);});
+}
+function render(page,arg){
+  const main=$('main'),L=$('tbL'),R=$('tbR');
+  L.innerHTML='';R.innerHTML='';
+  if(page==='albums'){renderAlbums(main,L,R);}
+  else if(page==='import'){renderImport(main);}
+  else if(page==='detail'){renderDetail(main,L,R,arg);}
+  else if(page==='trash'){renderTrash(main,L,R);}
+}
+
+/* ============== 相簿页 ============== */
+async function renderAlbums(main,L,R){
+  $('pageTitle').textContent='全部相簿';
+  L.innerHTML='';
+  R.innerHTML='<div class="icon-btn" id="btnTrash" title="最近删除">'+TRASH_SVG+'</div><div class="icon-btn" id="btnCreate">＋</div>';
+  const albums=await getAll('albums');
+  const photos=await getAll('photos');
+  const countMap={};
+  for(const p of photos){countMap[p.albumId]=(countMap[p.albumId]||0)+1;}
+  let html='';
+  if(albums.length===0){
+    html+='<div class="notice">暂无相簿。点击下方「导入」，选择照片并创建相簿开始整理。</div>';
+  }else{
+    html+='<div class="notice">照片保存在手机本机存储中，不随网址变化而消失；删除的照片可在右上角垃圾篓里找回。</div>';
+  }
+  html+='<div class="album-grid">';
+  html+='<div class="album-card create" id="cardCreate"><div class="plus">＋</div><div class="t">新建相簿</div></div>';
+  for(const a of albums.sort((x,y)=>y.createdAt-x.createdAt)){
+    const cover=a.coverPhotoId?photos.find(p=>p.id===a.coverPhotoId):null;
+    const coverUrl=cover?blobUrl(cover.thumb,'image/jpeg'):'';
+    html+='<div class="album-card" data-id="'+a.id+'">'+(cover?('<img class="album-cover" src="'+coverUrl+'">'):'<div class="album-empty">🖼️</div>')+'<div class="album-info"><div class="n">'+esc(a.name)+'</div><div class="c">'+(countMap[a.id]||0)+' 张</div></div></div>';
+  }
+  html+='</div>';
+  main.innerHTML=html;
+  $('btnCreate').onclick=showCreateSheet;
+  $('btnTrash').onclick=()=>nav('trash');
+  $('cardCreate').onclick=showCreateSheet;
+  document.querySelectorAll('.album-card[data-id]').forEach(c=>{
+    c.onclick=()=>nav('detail',{id:c.dataset.id});
+  });
+}
+
+function showCreateSheet(){
+  const sh=$('sheet');
+  sh.innerHTML='<h3>新建相簿</h3><input type="text" id="newAlbumName" placeholder="相簿名称" value="我的相簿"><div class="acts"><button class="btn" id="btnCancel">取消</button><button class="btn primary" id="btnOk">创建</button></div>';
+  $('modal').classList.add('show');
+  $('btnCancel').onclick=()=>$('modal').classList.remove('show');
+  $('btnOk').onclick=async()=>{
+    const n=$('newAlbumName').value.trim();
+    if(!n){toast('请输入名称');return;}
+    await createAlbum(n);
+    $('modal').classList.remove('show');
+    nav('albums');
+  };
+}
+
+/* ============== 导入页 ============== */
+async function renderImport(main){
+  $('pageTitle').textContent='导入照片';
+  const albums=await getAll('albums');
+  let opts=albums.length?albums.map(a=>'<option value="'+a.id+'">'+esc(a.name)+'</option>').join(''):'';
+  let html='<div class="notice">选择照片后，数据会压缩并存入本机浏览器，不经过任何服务器，换域名也不会消失。</div>';
+  html+='<div class="import-form">';
+  html+='<div class="form-row"><label>导入到相簿</label><select id="targetAlbum"><option value="0">新建相簿</option>'+opts+'</select></div>';
+  html+='<div class="form-row" id="newNameRow"><label>新相簿名称</label><input type="text" id="newName" placeholder="旅行 / 美食 / 工作…"></div>';
+  html+='<label for="fileInp" class="file-btn">选择照片</label><input type="file" id="fileInp" accept="image/*" multiple>';
+  html+='<div class="previews" id="previews"></div>';
+  html+='<div class="stats" id="stats"></div>';
+  html+='</div>';
+  html+='<button class="file-btn" id="btnImport" style="background:var(--green);display:none">开始导入</button>';
+  main.innerHTML=html;
+  const fi=$('fileInp'),pv=$('previews'),st=$('stats'),btn=$('btnImport'),sel=$('targetAlbum'),newRow=$('newNameRow');
+  let selected=[];
+  sel.onchange=()=>{newRow.style.display=sel.value==='0'?'block':'none';};
+  fi.onchange=()=>{
+    selected=[...fi.files].filter(f=>f.type.startsWith('image/'));
+    pv.innerHTML=selected.map((f)=>{
+      const url=URL.createObjectURL(f);
+      setTimeout(()=>URL.revokeObjectURL(url),30000);
+      return '<img class="p" src="'+url+'">';
+    }).join('');
+    st.textContent='已选 '+selected.length+' 张照片';
+    btn.style.display=selected.length?'flex':'none';
+  };
+  btn.onclick=async()=>{
+    if(!selected.length)return;
+    let albumId=sel.value;
+    if(albumId==='0'){
+      const n=$('newName').value.trim();
+      if(!n){toast('请输入新相簿名称');return;}
+      albumId=await put('albums',{name:n,createdAt:Date.now(),coverPhotoId:0});
+    }
+    btn.disabled=true;btn.textContent='导入中…';
+    const ok=await importPhotos(albumId,selected);
+    toast('成功导入 '+ok+' 张');
+    selected=[];pv.innerHTML='';st.textContent='';btn.style.display='none';fi.value='';
+    btn.disabled=false;btn.textContent='开始导入';
+    nav('albums');
+  };
+}
+
+/* ============== 相簿详情页 ============== */
+async function renderDetail(main,L,R,arg){
+  const album=await get('albums',+arg.id);
+  const photos=await getByIdx('photos','albumId',+arg.id);
+  $('pageTitle').textContent=album?album.name:'相簿';
+  L.innerHTML='<div class="icon-btn" id="btnBack">‹</div>';
+  R.innerHTML='<div class="icon-btn" id="btnMenu">⋯</div>';
+  let html='';
+  if(!photos.length){
+    html+='<div class="empty"><b>还没有照片</b>点击下方「导入」添加到这个相簿</div>';
+  }else{
+    html+='<div class="photo-grid">'+photos.map(p=>'<img src="'+blobUrl(p.thumb,'image/jpeg')+'" data-id="'+p.id+'">').join('')+'</div>';
+  }
+  main.innerHTML=html;
+  $('btnBack').onclick=()=>nav('albums');
+  $('btnMenu').onclick=()=>showAlbumMenu(album);
+  document.querySelectorAll('.photo-grid img').forEach((img,i)=>{
+    img.onclick=()=>openViewer(photos,i,+arg.id);
+  });
+}
+
+function showAlbumMenu(album){
+  const sh=$('sheet');
+  sh.innerHTML='<h3>'+esc(album.name)+'</h3>'+
+    '<button class="menu-row" id="mRename">重命名相簿</button>'+
+    '<button class="menu-row danger" id="mDelete">删除相簿（照片移入最近删除）</button>'+
+    '<button class="menu-row cancel" id="mCancel">取消</button>';
+  $('modal').classList.add('show');
+  $('mCancel').onclick=()=>$('modal').classList.remove('show');
+  $('mRename').onclick=()=>{
+    sh.innerHTML='<h3>重命名相簿</h3><input type="text" id="rnName" value="'+esc(album.name)+'"><div class="acts"><button class="btn" id="rnCancel">取消</button><button class="btn primary" id="rnOk">保存</button></div>';
+    $('rnCancel').onclick=()=>$('modal').classList.remove('show');
+    $('rnOk').onclick=async()=>{
+      const n=$('rnName').value.trim();
+      if(!n){toast('请输入名称');return;}
+      await renameAlbum(album,n);
+      $('modal').classList.remove('show');
+      toast('已重命名');
+      nav('detail',{id:album.id});
+    };
+  };
+  $('mDelete').onclick=async()=>{
+    if(!confirm('删除相簿「'+album.name+'」？\n其中的照片将移入「最近删除」，可随时恢复。'))return;
+    $('modal').classList.remove('show');
+    await deleteAlbum(album.id);
+    toast('相簿已删除，照片已移入最近删除');
+    nav('albums');
+  };
+}
+
+/* ============== 全屏查看器 ============== */
+let VIEWER=null;
+function openViewer(photos,idx,albumId){
+  VIEWER={photos,idx,albumId,url:null,zoom:false};
+  const d=document.createElement('div');
+  d.id='viewer';d.className='viewer';
+  d.innerHTML='<div class="v-top"><div class="v-close" id="vClose">‹</div><div class="v-info" id="vInfo"></div></div>'+
+    '<div class="v-img" id="vWrap"><img id="vImg" alt="照片"><div class="v-side l" id="vPrev">'+CHEV_SVG+'</div><div class="v-side r" id="vNext">'+CHEV_SVG+'</div></div>'+
+    '<div class="v-bar"><div class="v-act" id="vShare">'+SHARE_SVG+'<span>分享</span></div><div class="v-act danger" id="vDel">'+TRASH_SVG+'<span>删除</span></div></div>';
+  document.body.appendChild(d);
+  $('vClose').onclick=closeViewer;
+  $('vPrev').onclick=()=>shiftViewer(-1);
+  $('vNext').onclick=()=>shiftViewer(1);
+  $('vDel').onclick=vDelete;
+  $('vShare').onclick=vShare;
+  $('vImg').ondblclick=()=>{
+    VIEWER.zoom=!VIEWER.zoom;
+    $('vImg').style.transform=VIEWER.zoom?'scale(2.5)':'scale(1)';
+  };
+  const wrap=$('vWrap');
+  let tx=0,ty=0;
+  wrap.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
+  wrap.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;
+    if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.5)shiftViewer(dx<0?1:-1);
+  },{passive:true});
+  renderViewer();
+}
+function closeViewer(){
+  const vid=VIEWER?VIEWER.albumId:null;
+  if(VIEWER&&VIEWER.url)URL.revokeObjectURL(VIEWER.url);
+  const v=document.getElementById('viewer');
+  if(v)v.remove();
+  VIEWER=null;
+  if(vid!==null&&CURRENT==='detail')render('detail',{id:vid});
+}
+function shiftViewer(d){
+  const n=VIEWER.photos.length;
+  if(n<2)return;
+  VIEWER.idx=(VIEWER.idx+d+n)%n;
+  renderViewer();
+}
+function renderViewer(){
+  const p=VIEWER.photos[VIEWER.idx];
+  if(VIEWER.url)URL.revokeObjectURL(VIEWER.url);
+  VIEWER.url=blobUrl(p.data,p.mime);
+  const im=$('vImg');
+  im.src=VIEWER.url;
+  im.style.transform='scale(1)';
+  VIEWER.zoom=false;
+  $('vInfo').textContent=fmtDate(p.addedAt)+' · '+fmtMB(p.storeSize||p.size)+' · '+(VIEWER.idx+1)+'/'+VIEWER.photos.length;
+  const many=VIEWER.photos.length>1;
+  $('vPrev').style.display=many?'flex':'none';
+  $('vNext').style.display=many?'flex':'none';
+}
+async function vDelete(){
+  const p=VIEWER.photos[VIEWER.idx];
+  await trashPhoto(p);
+  VIEWER.photos.splice(VIEWER.idx,1);
+  toast('已移入最近删除');
+  if(!VIEWER.photos.length){closeViewer();return;}
+  if(VIEWER.idx>=VIEWER.photos.length)VIEWER.idx=VIEWER.photos.length-1;
+  renderViewer();
+}
+async function vShare(){
+  const p=VIEWER.photos[VIEWER.idx];
+  try{
+    if(navigator.share){
+      const file=new File([new Blob([p.data],{type:p.mime})],p.name||'photo.jpg',{type:p.mime});
+      if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file]});
+      else await navigator.share({title:'照片管家'});
+    }else{
+      toast('当前环境不支持分享');
+    }
+  }catch(e){/* 用户取消 */}
+}
+
+/* ============== 最近删除 ============== */
+async function renderTrash(main,L,R){
+  $('pageTitle').textContent='最近删除';
+  L.innerHTML='<div class="icon-btn" id="btnBackT">‹</div>';
+  const ts=await getAll('trash');
+  R.innerHTML=ts.length?'<div class="txt-btn" id="btnRestoreAll">恢复全部</div>':'';
+  if(!ts.length){
+    main.innerHTML='<div class="empty"><b>垃圾篓是空的</b>删除的照片会先保存在这里，<br>可恢复到原相簿，或彻底删除释放空间。</div>';
+  }else{
+    const total=ts.reduce((s,t)=>s+(t.data?t.data.byteLength:0),0);
+    let html='<div class="trash-sub">待删除 '+ts.length+' 项 · '+fmtMB(total)+'</div>';
+    html+='<div class="trash-grid">'+ts.map(t=>'<div class="cell" data-id="'+t.id+'"><img src="'+blobUrl(t.thumb,'image/jpeg')+'"><div class="rbtn">'+RESTORE_SVG+'</div></div>').join('')+'</div>';
+    html+='<div class="trash-tip">点击任意照片可恢复到原相簿</div>';
+    html+='<button class="purge-btn" id="btnPurge">删除 '+ts.length+' 项（'+fmtMB(total)+'）</button>';
+    main.innerHTML=html;
+    $('btnRestoreAll').onclick=async()=>{
+      for(const t of ts)await restorePhoto(t);
+      toast('已恢复 '+ts.length+' 张照片');
+      nav('albums');
+    };
+    document.querySelectorAll('.trash-grid .cell').forEach(c=>{
+      c.onclick=async()=>{
+        const t=ts.find(x=>x.id===+c.dataset.id);
+        await restorePhoto(t);
+        toast('已恢复到原相簿');
+        render('trash');
+      };
+    });
+    $('btnPurge').onclick=async()=>{
+      if(!confirm('彻底删除这 '+ts.length+' 项？\n将释放约 '+fmtMB(total)+' 存储空间，且无法恢复。'))return;
+      for(const t of ts)await del('trash',t.id);
+      toast('已彻底删除，存储空间已释放');
+      render('trash');
+    };
+  }
+  $('btnBackT').onclick=()=>nav('albums');
+}
+
+/* ============== 启动 ============== */
+(async()=>{
+  await initDB();
+  nav('albums');
+  if('serviceWorker' in navigator){
+    try{await navigator.serviceWorker.register('sw.js');}catch(e){console.log('sw注册失败',e);}
+  }
+})();
+</script>
+</body>
+</html>

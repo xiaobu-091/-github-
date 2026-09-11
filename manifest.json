@@ -2,7 +2,7 @@
   "name": "照片管家",
   "short_name": "照片管家",
   "description": "本地相簿管理与照片导入",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f2f2f7",
   "theme_color": "#ffffff",
